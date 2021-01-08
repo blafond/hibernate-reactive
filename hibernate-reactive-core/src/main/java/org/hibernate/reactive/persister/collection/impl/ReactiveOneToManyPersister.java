@@ -59,6 +59,6 @@ public class ReactiveOneToManyPersister extends OneToManyPersister {
 	}
 
 	private String generateString() {
-		return "abcd" + "efghi";
+		return "abcd" + "efghi" + "more characters...";
 	}
 }
