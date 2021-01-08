@@ -108,30 +108,30 @@ public class ReactiveOneToManyPersister extends OneToManyPersister implements Re
 		return CompletionStages.completedFuture( -1 );
 	}
 
-//	@Override
-//	public CompletionStage<Integer> reactiveDeleteRows(
-//			PersistentCollection collection, Serializable id, SharedSessionContractImplementor session) {
-//		// FIXME: Not sure what to implement here for OneToMany use-case
-//		// Maybe nothing due to the ReactiveCollectionUpdate/Remove/Recreate Action classes perform necessary operations
-//		// on the collection (basically delete and replace rather than operating on individual rows
-//		return CompletionStages.completedFuture( -1 );
-//	}
+	@Override
+	public CompletionStage<Integer> reactiveDeleteRows(
+			PersistentCollection collection, Serializable id, SharedSessionContractImplementor session) {
+		// FIXME: Not sure what to implement here for OneToMany use-case
+		// Maybe nothing due to the ReactiveCollectionUpdate/Remove/Recreate Action classes perform necessary operations
+		// on the collection (basically delete and replace rather than operating on individual rows
+		return CompletionStages.completedFuture( -1 );
+	}
 
-//	@Override
-//	public CompletionStage<Integer> reactiveInsertRows(
-//			PersistentCollection collection, Serializable id, SharedSessionContractImplementor session) {
-//		// FIXME: Not sure what to implement here for OneToMany use-case
-//		// Maybe nothing due to the ReactiveCollectionUpdate/Remove/Recreate Action classes perform necessary operations
-//		// on the collection (basically delete and replace rather than operating on individual rows
-//		return CompletionStages.completedFuture( -1 );
-//	}
+	@Override
+	public CompletionStage<Integer> reactiveInsertRows(
+			PersistentCollection collection, Serializable id, SharedSessionContractImplementor session) {
+		// FIXME: Not sure what to implement here for OneToMany use-case
+		// Maybe nothing due to the ReactiveCollectionUpdate/Remove/Recreate Action classes perform necessary operations
+		// on the collection (basically delete and replace rather than operating on individual rows
+		return CompletionStages.completedFuture( -1 );
+	}
 
-//	@Override
-//	public CompletionStage<Integer> reactiveUpdateRows(
-//			PersistentCollection collection, Serializable id, SharedSessionContractImplementor session) {
-//		// FIXME: Not sure what to implement here for OneToMany use-case
-//		// Maybe nothing due to the ReactiveCollectionUpdate/Remove/Recreate Action classes perform necessary operations
-//		// on the collection (basically delete and replace rather than operating on individual rows
-//		return CompletionStages.completedFuture( -1 );
-//	}
+	@Override
+	public CompletionStage<Integer> reactiveUpdateRows(
+			PersistentCollection collection, Serializable id, SharedSessionContractImplementor session) {
+		// FIXME: Not sure what to implement here for OneToMany use-case
+		// Maybe nothing due to the ReactiveCollectionUpdate/Remove/Recreate Action classes perform necessary operations
+		// on the collection (basically delete and replace rather than operating on individual rows
+		return CompletionStages.completedFuture( -1 );
+	}
 }

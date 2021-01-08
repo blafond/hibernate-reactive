@@ -20,7 +20,7 @@ import org.hibernate.engine.spi.SharedSessionContractImplementor;
 public interface ReactiveCollectionPersister {
 	CompletionStage<Void> recreateReactive(PersistentCollection collection, Serializable id, SharedSessionContractImplementor session);
 	CompletionStage<Integer> removeReactive(Serializable id, SharedSessionContractImplementor session);
-//	CompletionStage<Integer> reactiveDeleteRows(PersistentCollection collection, Serializable id, SharedSessionContractImplementor session);
-//	CompletionStage<Integer> reactiveInsertRows(PersistentCollection collection, Serializable id, SharedSessionContractImplementor session);
-//	CompletionStage<Integer> reactiveUpdateRows(PersistentCollection collection, Serializable id, SharedSessionContractImplementor session);
+	CompletionStage<Integer> reactiveDeleteRows(PersistentCollection collection, Serializable id, SharedSessionContractImplementor session);
+	CompletionStage<Integer> reactiveInsertRows(PersistentCollection collection, Serializable id, SharedSessionContractImplementor session);
+	CompletionStage<Integer> reactiveUpdateRows(PersistentCollection collection, Serializable id, SharedSessionContractImplementor session);
 }
