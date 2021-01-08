@@ -53,6 +53,12 @@ public class ReactiveOneToManyPersister extends OneToManyPersister {
 	}
 
 	protected ReactiveCollectionInitializer getAppropriateInitializer(Serializable key, SharedSessionContractImplementor session) {
+		// REMOVE NEXT LINE
+		generateString();
 		return (ReactiveCollectionInitializer) super.getAppropriateInitializer(key, session);
+	}
+
+	private String generateString() {
+		return "abcd" + "efghi";
 	}
 }
