@@ -32,6 +32,7 @@ dependencies {
 
     testImplementation 'org.assertj:assertj-core:3.13.2'
     testImplementation "io.vertx:vertx-unit:${vertxVersion}"
+    testImplementation "io.vertx:vertx-junit5:${vertxVersion}"
 
     // Drivers
     testImplementation "io.vertx:vertx-pg-client:${vertxVersion}"
