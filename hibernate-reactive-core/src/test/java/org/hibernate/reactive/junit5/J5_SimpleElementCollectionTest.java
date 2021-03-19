@@ -16,18 +16,18 @@ import javax.persistence.Id;
 import javax.persistence.Table;
 
 import org.hibernate.cfg.Configuration;
-import org.hibernate.reactive.mutiny.Mutiny;
 import org.hibernate.reactive.stage.Stage;
 
-import org.junit.Before;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import io.vertx.core.Vertx;
 import io.vertx.ext.unit.TestContext;
 import org.assertj.core.api.Assertions;
 
 @ExtendWith(PersonParameterResolver.class)
-public class J5_SimpleElementCollectionTest  extends BaseReactiveJupiter {
+public class J5_SimpleElementCollectionTest extends BaseReactiveJupiter {
 
 	private Person thePerson;
 
@@ -37,17 +37,17 @@ public class J5_SimpleElementCollectionTest  extends BaseReactiveJupiter {
 		return configuration;
 	}
 
-	@Before
+	@BeforeEach
 	public void populateDb(TestContext context) {
 		List<String> phones = Arrays.asList( "999-999-9999", "111-111-1111", "123-456-7890" );
 		thePerson = new Person( 7242000, "Claude", phones );
 
-		Mutiny.Session session = openMutinySession();
-		test( context, session.persist( thePerson ).call( session::flush ) );
+		Stage.Session session = openSession();
+		test( context, session.persist( thePerson ).thenCompose( v -> session.flush() )  );
 	}
 
 	@Test
-	public void findEntityWithElementCollectionWithStageAPI(TestContext context) {
+	public void findEntityWithElementCollectionWithStageAPI(Vertx vertx, TestContext context) {
 		Stage.Session session = openSession();
 
 		test (

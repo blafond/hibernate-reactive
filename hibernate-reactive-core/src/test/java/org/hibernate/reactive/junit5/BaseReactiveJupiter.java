@@ -6,6 +6,7 @@
 package org.hibernate.reactive.junit5;
 
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.TimeUnit;
 
 import org.hibernate.SessionFactory;
 import org.hibernate.boot.registry.StandardServiceRegistry;
@@ -21,32 +22,28 @@ import org.hibernate.reactive.provider.ReactiveServiceRegistryBuilder;
 import org.hibernate.reactive.provider.Settings;
 import org.hibernate.reactive.provider.service.ReactiveGenerationTarget;
 import org.hibernate.reactive.stage.Stage;
-import org.hibernate.reactive.testing.SessionFactoryManagerExtension;
 import org.hibernate.reactive.vertx.VertxInstance;
 import org.hibernate.tool.schema.spi.SchemaManagementTool;
 
-import org.junit.Rule;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+
 import io.smallrye.mutiny.Uni;
+import io.vertx.core.Vertx;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
-import io.vertx.ext.unit.junit.RunTestOnContext;
-import io.vertx.ext.unit.junit.Timeout;
+import io.vertx.junit5.Timeout;
 import io.vertx.junit5.VertxExtension;
 
 import static org.hibernate.reactive.containers.DatabaseConfiguration.dbType;
 
-@ExtendWith({ VertxExtension.class, SessionFactoryManagerExtension.class, TestContextParameterResolver.class })
+@ExtendWith({ VertxExtension.class, TestContextParameterResolver.class })
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Timeout(value = 10, timeUnit = TimeUnit.SECONDS)
 public abstract class BaseReactiveJupiter {
-
-	@Rule
-	public Timeout rule = Timeout.seconds( 5 * 60 );
-
-	@Rule
-	public RunTestOnContext vertxContextRule = new RunTestOnContext();
 
 	private AutoCloseable session;
 	private ReactiveConnection connection;
@@ -105,11 +102,13 @@ public abstract class BaseReactiveJupiter {
 		return configuration;
 	}
 
+
+
 	@BeforeEach
-	public void before(TestContext context) {
+	public void before(Vertx vertx, TestContext context) {
 		Configuration configuration = constructConfiguration();
 		StandardServiceRegistryBuilder builder = new ReactiveServiceRegistryBuilder()
-				.addService( VertxInstance.class, (VertxInstance) () -> vertxContextRule.vertx() )
+				.addService( VertxInstance.class, (VertxInstance) () -> vertx )
 				.applySettings( configuration.getProperties() );
 		addServices( builder );
 		StandardServiceRegistry registry = builder.build();
@@ -119,7 +118,7 @@ public abstract class BaseReactiveJupiter {
 		// exception when run on the Vert.x event loop. So call it using
 		// Vertx.executeBlocking()
 		Async async = context.async();
-		vertxContextRule.vertx().<SessionFactory>executeBlocking(
+		vertx.<SessionFactory>executeBlocking(
 				p -> p.complete( configuration.buildSessionFactory( registry ) ),
 				r -> {
 					if ( r.failed() ) {
