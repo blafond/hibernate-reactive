@@ -16,20 +16,19 @@ import javax.persistence.Id;
 import javax.persistence.Table;
 
 import org.hibernate.cfg.Configuration;
-import org.hibernate.reactive.stage.Stage;
 
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.Assert;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.vertx.core.Vertx;
-import io.vertx.ext.unit.TestContext;
+import io.vertx.junit5.VertxTestContext;
 import org.assertj.core.api.Assertions;
 
-@ExtendWith(PersonParameterResolver.class)
+import static org.hibernate.reactive.util.impl.CompletionStages.completedFuture;
+
 public class J5_SimpleElementCollectionTest extends BaseReactiveJupiter {
 
-	private Person thePerson;
+//	private Person thePerson;
 
 	protected Configuration constructConfiguration() {
 		Configuration configuration = super.constructConfiguration();
@@ -37,23 +36,27 @@ public class J5_SimpleElementCollectionTest extends BaseReactiveJupiter {
 		return configuration;
 	}
 
-	@BeforeEach
-	public void populateDb(TestContext context) {
-		List<String> phones = Arrays.asList( "999-999-9999", "111-111-1111", "123-456-7890" );
-		thePerson = new Person( 7242000, "Claude", phones );
-
-		Stage.Session session = openSession();
-		test( context, session.persist( thePerson ).thenCompose( v -> session.flush() )  );
-	}
+//	@BeforeEach
+//	public void populateDb(VertxTestContext context) {
+//		List<String> phones = Arrays.asList( "999-999-9999", "111-111-1111", "123-456-7890" );
+//		thePerson = new Person( 7242000, "Claude", phones );
+//
+//		Stage.Session session = openSession();
+//		test( context, session.persist( thePerson ).thenCompose( v -> session.flush() )  );
+//	}
 
 	@Test
-	public void findEntityWithElementCollectionWithStageAPI(Vertx vertx, TestContext context) {
-		Stage.Session session = openSession();
+	public void findEntityWithElementCollectionWithStageAPI(Vertx vertx, VertxTestContext context) {
 
-		test (
-				context,
-				session.find( Person.class, thePerson.getId() )
-						.thenAccept( found -> assertPhones( context, found, "999-999-9999", "111-111-1111", "123-456-7890" ) )
+		List<String> phones = Arrays.asList( "999-999-9999", "111-111-1111", "123-456-7890" );
+		Person thePerson = new Person( 7242000, "Claude", phones );
+
+		test ( context, completedFuture( openSession() )
+				.thenCompose( s -> s.persist( thePerson )
+				.thenCompose( v -> s.flush() ))
+			    .thenApply( v -> openSession() )
+					.thenCompose(s -> s.find( Person.class, thePerson.getId() ))
+					.thenAccept( found -> assertPhones( context, found, "999-999-9999", "111-111-1111", "123-456-7890" ) )
 		);
 	}
 
@@ -61,8 +64,8 @@ public class J5_SimpleElementCollectionTest extends BaseReactiveJupiter {
 	 * Utility method to check the content of the collection of elements.
 	 * It sorts the expected and actual phones before comparing.
 	 */
-	private static void assertPhones(TestContext context, Person person, String... expectedPhones) {
-		context.assertNotNull( person );
+	private static void assertPhones(VertxTestContext context, Person person, String... expectedPhones) {
+		Assert.assertNotNull( person );
 		String[] sortedExpected = Arrays.stream( expectedPhones ).sorted()
 				.sorted( String.CASE_INSENSITIVE_ORDER )
 				.collect( Collectors.toList() )

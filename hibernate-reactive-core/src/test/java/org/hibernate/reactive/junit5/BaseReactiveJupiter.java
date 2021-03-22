@@ -13,6 +13,7 @@ import org.hibernate.boot.registry.StandardServiceRegistry;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.engine.jdbc.connections.spi.ConnectionProvider;
+import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.reactive.common.AutoCloseable;
 import org.hibernate.reactive.containers.DatabaseConfiguration;
 import org.hibernate.reactive.mutiny.Mutiny;
@@ -27,21 +28,21 @@ import org.hibernate.tool.schema.spi.SchemaManagementTool;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 
+import org.jboss.logging.Logger;
+
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.Vertx;
-import io.vertx.ext.unit.Async;
-import io.vertx.ext.unit.TestContext;
+import io.vertx.junit5.Checkpoint;
 import io.vertx.junit5.Timeout;
 import io.vertx.junit5.VertxExtension;
+import io.vertx.junit5.VertxTestContext;
 
 import static org.hibernate.reactive.containers.DatabaseConfiguration.dbType;
 
 @ExtendWith({ VertxExtension.class, TestContextParameterResolver.class })
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Timeout(value = 10, timeUnit = TimeUnit.SECONDS)
 public abstract class BaseReactiveJupiter {
 
@@ -50,9 +51,9 @@ public abstract class BaseReactiveJupiter {
 	private org.hibernate.SessionFactory sessionFactory;
 	private ReactiveConnectionPool poolProvider;
 
-	protected static void test(TestContext context, CompletionStage<?> work) {
+	protected static void test(VertxTestContext context, CompletionStage<?> work) {
 		// this will be added to TestContext in the next vert.x release
-		Async async = context.async();
+		Checkpoint ckPoint = context.checkpoint();
 		work.whenComplete( (res, err) -> {
 			if ( res instanceof Stage.Session ) {
 				Stage.Session s = (Stage.Session) res;
@@ -61,16 +62,15 @@ public abstract class BaseReactiveJupiter {
 				}
 			}
 			if ( err != null ) {
-				context.fail( err );
-			}
-			else {
-				async.complete();
+				context.failNow( err );
+			} else {
+				context.completed();
 			}
 		} );
 	}
 
-	protected static void test(TestContext context, Uni<?> uni) {
-		Async async = context.async();
+	protected static void test(VertxTestContext context, Uni<?> uni) {
+		Checkpoint ckPoint = context.checkpoint();
 		uni.subscribe().with(
 				res -> {
 					if ( res instanceof Mutiny.Session) {
@@ -79,9 +79,9 @@ public abstract class BaseReactiveJupiter {
 							session.close();
 						}
 					}
-					async.complete();
+					context.completed();
 				},
-				throwable -> context.fail( throwable )
+				throwable -> context.failNow( throwable )
 		);
 	}
 
@@ -105,7 +105,7 @@ public abstract class BaseReactiveJupiter {
 
 
 	@BeforeEach
-	public void before(Vertx vertx, TestContext context) {
+	public void before(Vertx vertx, VertxTestContext context) {
 		Configuration configuration = constructConfiguration();
 		StandardServiceRegistryBuilder builder = new ReactiveServiceRegistryBuilder()
 				.addService( VertxInstance.class, (VertxInstance) () -> vertx )
@@ -117,17 +117,18 @@ public abstract class BaseReactiveJupiter {
 		// schema generation is a blocking operation and so it causes an
 		// exception when run on the Vert.x event loop. So call it using
 		// Vertx.executeBlocking()
-		Async async = context.async();
+		Checkpoint ckPoint = context.checkpoint();
 		vertx.<SessionFactory>executeBlocking(
 				p -> p.complete( configuration.buildSessionFactory( registry ) ),
 				r -> {
 					if ( r.failed() ) {
-						context.fail( r.cause() );
+						context.failNow( r.cause() );
 					}
 					else {
 						sessionFactory = r.result();
 						poolProvider = registry.getService( ReactiveConnectionPool.class );
-						async.complete();
+						context.completed();
+						ckPoint.flag();
 					}
 				}
 		);
@@ -162,7 +163,7 @@ public abstract class BaseReactiveJupiter {
 	}
 
 	@AfterEach
-	public void after(TestContext context) {
+	public void after(VertxTestContext context) {
 		if ( session != null && session.isOpen() ) {
 			session.close();
 			session = null;
@@ -182,7 +183,7 @@ public abstract class BaseReactiveJupiter {
 		}
 	}
 
-	protected Stage.SessionFactory getSessionFactory() {
+	protected Stage.SessionFactory getSessionFactory()  {
 		return sessionFactory.unwrap( Stage.SessionFactory.class );
 	}
 
