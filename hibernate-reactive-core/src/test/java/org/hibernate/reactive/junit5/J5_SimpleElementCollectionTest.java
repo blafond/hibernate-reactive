@@ -15,57 +15,82 @@ import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.Table;
 
-import org.hibernate.cfg.Configuration;
+import org.hibernate.reactive.mutiny.Mutiny;
+import org.hibernate.reactive.stage.Stage;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import io.vertx.core.Vertx;
 import io.vertx.junit5.VertxTestContext;
 import org.assertj.core.api.Assertions;
 
-import static org.hibernate.reactive.util.impl.CompletionStages.completedFuture;
-
 public class J5_SimpleElementCollectionTest extends BaseReactiveJupiter {
 
-//	private Person thePerson;
-
-	protected Configuration constructConfiguration() {
-		Configuration configuration = super.constructConfiguration();
-		configuration.addAnnotatedClass( Person.class );
-		return configuration;
+	@BeforeAll
+	protected static void beforeAll( ) {
+		getConfiguration().addAnnotatedClass( Person.class );
 	}
 
-//	@BeforeEach
-//	public void populateDb(VertxTestContext context) {
-//		List<String> phones = Arrays.asList( "999-999-9999", "111-111-1111", "123-456-7890" );
-//		thePerson = new Person( 7242000, "Claude", phones );
-//
-//		Stage.Session session = openSession();
-//		test( context, session.persist( thePerson ).thenCompose( v -> session.flush() )  );
-//	}
+	@Test
+	public void persistWithMutinyAPI(Vertx vertx, VertxTestContext context) {
+		vertx.runOnContext( event -> {
+			Mutiny.Session session = openMutinySession();
+
+			Person johnny = new Person( 999, "Johnny English", Arrays.asList( "888", "555" ) );
+
+			test (
+					context,
+					session.persist( johnny )
+							.call( session::flush )
+							.chain( () -> openMutinySession().find( Person.class, johnny.getId() ) )
+							.invoke( found -> assertPhones( found, "888", "555" ) )
+			);
+		} );
+	}
 
 	@Test
 	public void findEntityWithElementCollectionWithStageAPI(Vertx vertx, VertxTestContext context) {
+		vertx.runOnContext( event -> {
+			Stage.Session session = openStageSession();
 
-		List<String> phones = Arrays.asList( "999-999-9999", "111-111-1111", "123-456-7890" );
-		Person thePerson = new Person( 7242000, "Claude", phones );
+			List<String> phones = Arrays.asList( "999-999-9999", "111-111-1111", "123-456-7890" );
+			Person thePerson = new Person( 7242000, "Claude", phones );
 
-		test ( context, completedFuture( openSession() )
-				.thenCompose( s -> s.persist( thePerson )
-				.thenCompose( v -> s.flush() ))
-			    .thenApply( v -> openSession() )
-					.thenCompose(s -> s.find( Person.class, thePerson.getId() ))
-					.thenAccept( found -> assertPhones( context, found, "999-999-9999", "111-111-1111", "123-456-7890" ) )
-		);
+			test (
+					context,
+					session.persist( thePerson )
+							.thenCompose( v -> session.flush() )
+							.thenCompose( v -> openStageSession().find( Person.class, thePerson.getId() ) )
+							.thenAccept( found -> assertPhones( found, "999-999-9999", "111-111-1111", "123-456-7890" ) )
+			);
+		} );
+	}
+
+	@Test
+	public void findEntityWithElementCollectionWithMutinyAPI( Vertx vertx, VertxTestContext context ) {
+		vertx.runOnContext( event -> {
+			Mutiny.Session session = openMutinySession();
+
+			List<String> phones = Arrays.asList( "999-999-9999", "111-111-1111", "123-456-7890" );
+			Person thePerson = new Person( 8242000, "Claude", phones );
+
+			test (
+					context,
+					session.persist( thePerson )
+							.call( session::flush )
+							.chain( () -> openMutinySession().find( Person.class, thePerson.getId() )
+									.invoke( found -> assertPhones( found, "999-999-9999", "111-111-1111", "123-456-7890" ) )
+							) );
+		} );
 	}
 
 	/**
 	 * Utility method to check the content of the collection of elements.
 	 * It sorts the expected and actual phones before comparing.
 	 */
-	private static void assertPhones(VertxTestContext context, Person person, String... expectedPhones) {
-		Assert.assertNotNull( person );
+	private static void assertPhones(Person person, String... expectedPhones) {
+		Assertions.assertThat( person ).isNotNull();
 		String[] sortedExpected = Arrays.stream( expectedPhones ).sorted()
 				.sorted( String.CASE_INSENSITIVE_ORDER )
 				.collect( Collectors.toList() )
@@ -142,7 +167,7 @@ public class J5_SimpleElementCollectionTest extends BaseReactiveJupiter {
 			final StringBuilder sb = new StringBuilder();
 			sb.append( id );
 			sb.append( ", " ).append( name );
-			sb.append( ", " ).append( phones );
+			sb.append( ", ").append( phones );
 			return sb.toString();
 		}
 	}
