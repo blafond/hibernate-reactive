@@ -22,20 +22,36 @@ import javax.persistence.InheritanceType;
 import javax.persistence.JoinColumn;
 import javax.persistence.OneToOne;
 
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.boot.registry.StandardServiceRegistry;
+import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.cfg.AvailableSettings;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.reactive.mutiny.Mutiny;
+import org.hibernate.reactive.provider.Settings;
+import org.hibernate.reactive.stage.Stage;
+import org.hibernate.reactive.testing.DatabaseSelectionRule;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.vertx.ext.unit.TestContext;
 import org.assertj.core.api.Assertions;
 
+import static org.hibernate.reactive.containers.DatabaseConfiguration.DBType.POSTGRESQL;
+
 public class Issue702Test extends BaseReactiveTest {
+
+	@Rule
+	public DatabaseSelectionRule rule = DatabaseSelectionRule.runOnlyFor( POSTGRESQL );
+
 	private Campaign theCampaign;
+
+	private SessionFactory ormFactory;
 
 	@Override
 	protected Configuration constructConfiguration() {
@@ -49,9 +65,22 @@ public class Issue702Test extends BaseReactiveTest {
 	}
 
 	@Before
+	public void prepareOrmFactory() {
+		Configuration configuration = constructConfiguration();
+		configuration.setProperty( Settings.DRIVER, "org.postgresql.Driver" );
+		configuration.setProperty( Settings.DIALECT, "org.hibernate.dialect.PostgreSQL95Dialect" );
+
+		StandardServiceRegistryBuilder builder = new StandardServiceRegistryBuilder()
+				.applySettings( configuration.getProperties() );
+
+		StandardServiceRegistry registry = builder.build();
+		ormFactory = configuration.buildSessionFactory( registry );
+	}
+
+	@Before
 	public void populateDb(TestContext context) {
 		theCampaign = new Campaign();
-		theCampaign.setSchedule( new ExecutionDate(OffsetDateTime.now() ));
+		theCampaign.setSchedule( new ExecutionDate(OffsetDateTime.now(), "ALPHA") );
 
 		Mutiny.Session session = openMutinySession();
 		test( context, session.persist( theCampaign ).call( session::flush ) );
@@ -69,17 +98,37 @@ public class Issue702Test extends BaseReactiveTest {
 		test(context,
 			 session.find( Campaign.class, theCampaign.getId() )
 					 .invoke( foundCampaign -> {
-					 	ExecutionDate ed = new ExecutionDate(OffsetDateTime.now());
-					 	foundCampaign.setSchedule( new ExecutionDate(OffsetDateTime.now() ) );
+					 	foundCampaign.setSchedule( new ExecutionDate(OffsetDateTime.now(), "BETA") );
 					 } )
 					 .call( session::flush )
-					 .chain( () -> openMutinySession().find( Campaign.class, theCampaign.getId() ) )
+					 .chain( () -> {
+					 	return openMutinySession().find( Campaign.class, theCampaign.getId() );
+					 } )
 					 .invoke( updatedCampaign -> {
 							 Assertions.assertThat( updatedCampaign ).isNotNull();
 							 Assertions.assertThat( updatedCampaign.getSchedule() ).isNotNull();
 							 Assertions.assertThat(
-									( (ExecutionDate) updatedCampaign.getSchedule() ).getStart() ).isNotEqualTo( execDate.getStart() );
+									( updatedCampaign.getSchedule() ).getCodeName() ).isNotEqualTo( execDate.getCodeName() );
 						 } )
+		);
+	}
+
+	@Test
+	public void testUpdateExecutionDateWithORM(TestContext context) {
+
+		Session session = ormFactory.openSession();
+		session.beginTransaction();
+		theCampaign.setSchedule( new ExecutionDate( OffsetDateTime.now(), "BETA" ) );
+		session.getTransaction().commit();
+		session.close();
+
+
+		Stage.Session stageSession = openSession();
+		test( context, stageSession.find( Campaign.class, theCampaign.getId() )
+				.thenAccept( entityFound -> context.assertEquals(
+						theCampaign.getSchedule().getCodeName(),
+						entityFound.getSchedule().getCodeName()
+				) )
 		);
 	}
 
@@ -89,7 +138,7 @@ public class Issue702Test extends BaseReactiveTest {
 		@Id @GeneratedValue
 		private Integer id;
 
-		@OneToOne(mappedBy = "campaign", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+		@OneToOne(mappedBy = "campaign",  cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
 		@JsonIgnore
 		private Schedule schedule;
 
@@ -99,7 +148,9 @@ public class Issue702Test extends BaseReactiveTest {
 		// Getters and setters
 		public void setSchedule(Schedule schedule) {
 			this.schedule = schedule;
-			this.schedule.setCampaign( this );
+			if( schedule != null ) {
+				this.schedule.setCampaign( this );
+			}
 		}
 
 		public Schedule getSchedule() {
@@ -119,6 +170,9 @@ public class Issue702Test extends BaseReactiveTest {
 		@Column(name = "id")
 		private String id = UUID.randomUUID().toString();
 
+		@Column(name = "code_name")
+		private String code_name;
+
 		@OneToOne
 		@JoinColumn(name = "campaign_id")
 		@JsonIgnore
@@ -136,6 +190,14 @@ public class Issue702Test extends BaseReactiveTest {
 		public Campaign getCampaign() {
 			return campaign;
 		}
+
+		public void setCodeName(String code_name) {
+			this.code_name = code_name;
+		}
+
+		public String getCodeName() {
+			return code_name;
+		}
 	}
 
 	@Entity (name="ExecutionDate")
@@ -148,8 +210,9 @@ public class Issue702Test extends BaseReactiveTest {
 		public ExecutionDate() {
 		}
 
-		public ExecutionDate( OffsetDateTime start ) {
+		public ExecutionDate( OffsetDateTime start, String code_name ) {
 			this.start = start;
+			setCodeName( code_name );
 		}
 
 		// Getters and setters
