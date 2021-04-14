@@ -72,7 +72,7 @@ public class DefaultReactiveDeleteEventListener
 	 *
 	 */
 	public void onDelete(DeleteEvent event) {
-		throw new UnsupportedOperationException();
+		reactiveOnDelete( event );
 	}
 
 	/**
@@ -301,13 +301,6 @@ public class DefaultReactiveDeleteEventListener
 			final boolean isOrphanRemovalBeforeUpdates,
 			final EntityPersister persister,
 			final IdentitySet transientEntities) {
-
-//		System.out.println("   ============ DefaultReactiveDeleteEventListener()"
-//				+ "\n\t     entityEntry = " + entityEntry.getEntityName()
-//				+ "\n\t     isCascadeDeleteEnabled = " + isCascadeDeleteEnabled
-//				+ "\n\t     isOrphanRemovalBeforeUpdates = " + isOrphanRemovalBeforeUpdates
-//				+ "\n\t     isCascadeDeleteEnabled = " + persister.getClass().getName()
-//		);
 
 		if ( LOG.isTraceEnabled() ) {
 			LOG.tracev(

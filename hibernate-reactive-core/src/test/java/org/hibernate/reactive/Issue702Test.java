@@ -41,6 +41,7 @@ import org.junit.Test;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.vertx.ext.unit.TestContext;
+import org.assertj.core.api.Assertions;
 
 import static org.hibernate.reactive.containers.DatabaseConfiguration.DBType.POSTGRESQL;
 
@@ -88,68 +89,46 @@ public class Issue702Test extends BaseReactiveTest {
 
 	@After
 	public void cleanDB(TestContext context) {
-		System.out.println("  ========= CLEAN DB ==================================");
 		test( context, deleteEntities( "Campaign", "Schedule" ) );
 	}
 
 	@Test
 	public void testUpdateExecutionDate(TestContext context) {
-		System.out.println("  ========= START REACTIVE TEST ==================================");
 		Mutiny.Session session = openMutinySession();
 		ExecutionDate execDate = (ExecutionDate)theCampaign.getSchedule();
 		test(context,
 			 session.find( Campaign.class, theCampaign.getId() )
 					 .invoke( foundCampaign -> {
-						 System.out.println("  ========= SETTING NEW SCHEDULE ==================================");
 						 foundCampaign.setSchedule( new ExecutionDate(OffsetDateTime.now(), "BETA") );
 					 } )
-					 .call( () -> {
-						 System.out.println("  ========= FLUSHING NEW SCHEDULE ==================================");
-					 	 return session.flush();
-					 } )
-//					 .chain( () -> openMutinySession().find( Campaign.class, theCampaign.getId() ); )
-//					 .invoke( updatedCampaign -> {
-//							 Assertions.assertThat( updatedCampaign ).isNotNull();
-//							 Assertions.assertThat( updatedCampaign.getSchedule() ).isNotNull();
-//							 Assertions.assertThat(
-//									( updatedCampaign.getSchedule() ).getCodeName() ).isNotEqualTo( execDate.getCodeName() );
-//						 } )
+					 .call( session::flush )
+					 .chain( () -> openMutinySession().find( Campaign.class, theCampaign.getId() ) )
+					 .invoke( updatedCampaign -> {
+							 Assertions.assertThat( updatedCampaign ).isNotNull();
+							 Assertions.assertThat( updatedCampaign.getSchedule() ).isNotNull();
+							 Assertions.assertThat(
+									( updatedCampaign.getSchedule() ).getCodeName() ).isNotEqualTo( execDate.getCodeName() );
+						 } )
 		);
 	}
 
 	@Test
 	public void testUpdateExecutionDateWithORM(TestContext context) {
-		System.out.println("  ========= START ORM TEST ==================================");
-		Arrays.asList()
 		Session session = ormFactory.openSession();
-		session.beginTransaction();
-		final Campaign campaign = session.getReference( Campaign.class, theCampaign.getId() );
-		campaign.setSchedule( new ExecutionDate( OffsetDateTime.now(), "BETA" ) );
-		session.getTransaction().commit();
-//		session.close();
 
-//		session = ormFactory.openSession();
-		session.clear();
-		session.beginTransaction();
+		Arrays.asList( "BETA", "OMEGA", "RHO").forEach( code -> {
+			session.beginTransaction();
+			final Campaign campaign = session.getReference( Campaign.class, theCampaign.getId() );
+			campaign.setSchedule( new ExecutionDate( OffsetDateTime.now(), code ) );
+			session.getTransaction().commit();
+			session.clear();
+		} );
+		session.close();
 
-//		campaign = session.load( Campaign.class, theCam				paign.getId() );
-		campaign.setSchedule( new ExecutionDate( OffsetDateTime.now(), "OMEGA" ) );
-		session.getTransaction().commit();
-//		session.close();
-
-//		session = ormFactory.openSession();
-		session.clear();
-		session.beginTransaction();
-//		Campaign campaign3 = session.load( Campaign.class, theCampaign.getId() );
-		campaign.setSchedule( new ExecutionDate( OffsetDateTime.now(), "RHO" ) );
-		session.getTransaction().commit();
-//		session.close();
-
-		System.out.println("  ========= VERIFY NEW SCHEDULE ==================================");
 		Stage.Session stageSession = openSession();
 		test( context, stageSession.find( Campaign.class, theCampaign.getId() )
 				.thenAccept( entityFound -> context.assertEquals(
-						campaign.getSchedule().getCodeName(),
+						"RHO",
 						entityFound.getSchedule().getCodeName()
 				) )
 		);
