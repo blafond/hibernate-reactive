@@ -302,6 +302,13 @@ public class DefaultReactiveDeleteEventListener
 			final EntityPersister persister,
 			final IdentitySet transientEntities) {
 
+//		System.out.println("   ============ DefaultReactiveDeleteEventListener()"
+//				+ "\n\t     entityEntry = " + entityEntry.getEntityName()
+//				+ "\n\t     isCascadeDeleteEnabled = " + isCascadeDeleteEnabled
+//				+ "\n\t     isOrphanRemovalBeforeUpdates = " + isOrphanRemovalBeforeUpdates
+//				+ "\n\t     isCascadeDeleteEnabled = " + persister.getClass().getName()
+//		);
+
 		if ( LOG.isTraceEnabled() ) {
 			LOG.tracev(
 					"Deleting {0}",

@@ -51,6 +51,7 @@ public class SqlClientConnection implements ReactiveConnection {
 
 	@Override
 	public CompletionStage<Integer> update(String sql, Object[] paramValues) {
+		System.out.println("  ###################  SCC.update()  SQL = " + sql);
 		return update( sql, Tuple.wrap( paramValues ) );
 	}
 

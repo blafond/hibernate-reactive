@@ -7,6 +7,7 @@ package org.hibernate.reactive;
 
 import java.io.Serializable;
 import java.time.OffsetDateTime;
+import java.util.Arrays;
 import java.util.UUID;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -40,7 +41,6 @@ import org.junit.Test;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.vertx.ext.unit.TestContext;
-import org.assertj.core.api.Assertions;
 
 import static org.hibernate.reactive.containers.DatabaseConfiguration.DBType.POSTGRESQL;
 
@@ -88,45 +88,68 @@ public class Issue702Test extends BaseReactiveTest {
 
 	@After
 	public void cleanDB(TestContext context) {
+		System.out.println("  ========= CLEAN DB ==================================");
 		test( context, deleteEntities( "Campaign", "Schedule" ) );
 	}
 
 	@Test
 	public void testUpdateExecutionDate(TestContext context) {
+		System.out.println("  ========= START REACTIVE TEST ==================================");
 		Mutiny.Session session = openMutinySession();
 		ExecutionDate execDate = (ExecutionDate)theCampaign.getSchedule();
 		test(context,
 			 session.find( Campaign.class, theCampaign.getId() )
 					 .invoke( foundCampaign -> {
-					 	foundCampaign.setSchedule( new ExecutionDate(OffsetDateTime.now(), "BETA") );
+						 System.out.println("  ========= SETTING NEW SCHEDULE ==================================");
+						 foundCampaign.setSchedule( new ExecutionDate(OffsetDateTime.now(), "BETA") );
 					 } )
-					 .call( session::flush )
-					 .chain( () -> {
-					 	return openMutinySession().find( Campaign.class, theCampaign.getId() );
+					 .call( () -> {
+						 System.out.println("  ========= FLUSHING NEW SCHEDULE ==================================");
+					 	 return session.flush();
 					 } )
-					 .invoke( updatedCampaign -> {
-							 Assertions.assertThat( updatedCampaign ).isNotNull();
-							 Assertions.assertThat( updatedCampaign.getSchedule() ).isNotNull();
-							 Assertions.assertThat(
-									( updatedCampaign.getSchedule() ).getCodeName() ).isNotEqualTo( execDate.getCodeName() );
-						 } )
+//					 .chain( () -> openMutinySession().find( Campaign.class, theCampaign.getId() ); )
+//					 .invoke( updatedCampaign -> {
+//							 Assertions.assertThat( updatedCampaign ).isNotNull();
+//							 Assertions.assertThat( updatedCampaign.getSchedule() ).isNotNull();
+//							 Assertions.assertThat(
+//									( updatedCampaign.getSchedule() ).getCodeName() ).isNotEqualTo( execDate.getCodeName() );
+//						 } )
 		);
 	}
 
 	@Test
 	public void testUpdateExecutionDateWithORM(TestContext context) {
-
+		System.out.println("  ========= START ORM TEST ==================================");
+		Arrays.asList()
 		Session session = ormFactory.openSession();
 		session.beginTransaction();
-		theCampaign.setSchedule( new ExecutionDate( OffsetDateTime.now(), "BETA" ) );
+		final Campaign campaign = session.getReference( Campaign.class, theCampaign.getId() );
+		campaign.setSchedule( new ExecutionDate( OffsetDateTime.now(), "BETA" ) );
 		session.getTransaction().commit();
-		session.close();
+//		session.close();
 
+//		session = ormFactory.openSession();
+		session.clear();
+		session.beginTransaction();
 
+//		campaign = session.load( Campaign.class, theCam				paign.getId() );
+		campaign.setSchedule( new ExecutionDate( OffsetDateTime.now(), "OMEGA" ) );
+		session.getTransaction().commit();
+//		session.close();
+
+//		session = ormFactory.openSession();
+		session.clear();
+		session.beginTransaction();
+//		Campaign campaign3 = session.load( Campaign.class, theCampaign.getId() );
+		campaign.setSchedule( new ExecutionDate( OffsetDateTime.now(), "RHO" ) );
+		session.getTransaction().commit();
+//		session.close();
+
+		System.out.println("  ========= VERIFY NEW SCHEDULE ==================================");
 		Stage.Session stageSession = openSession();
 		test( context, stageSession.find( Campaign.class, theCampaign.getId() )
 				.thenAccept( entityFound -> context.assertEquals(
-						theCampaign.getSchedule().getCodeName(),
+						campaign.getSchedule().getCodeName(),
 						entityFound.getSchedule().getCodeName()
 				) )
 		);

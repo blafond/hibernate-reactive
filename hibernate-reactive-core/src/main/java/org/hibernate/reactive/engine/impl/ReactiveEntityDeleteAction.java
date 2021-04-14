@@ -71,6 +71,12 @@ public class ReactiveEntityDeleteAction extends EntityDeleteAction implements Re
 		else {
 			ck = null;
 		}
+//
+//		System.out.println(
+//				"  #### >>>  ReactiveEntityDeleteAction.reactiveExecute()" +
+//				"\n\t === >> Entity = " + getEntityName() +
+//				"\n\t === >> isCascadeDeleteEnabled = " + isCascadeDeleteEnabled() +
+//				"\n\t === >> veto = " + veto);
 
 		CompletionStage<?> deleteStep = !isCascadeDeleteEnabled() && !veto
 				? ((ReactiveEntityPersister) persister).deleteReactive( id, version, instance, session )

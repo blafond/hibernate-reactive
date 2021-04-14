@@ -5,17 +5,22 @@
  */
 package org.hibernate.reactive;
 
+
 import io.vertx.ext.unit.TestContext;
+import org.assertj.core.api.Assertions;
 
 import org.hibernate.Hibernate;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.reactive.mutiny.Mutiny;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import javax.persistence.*;
 
 public class LazyOneToOneWithJoinColumnTest extends BaseReactiveTest {
+
+	private Endpoint endpoint;
 
 	@Override
 	protected Configuration constructConfiguration() {
@@ -25,7 +30,23 @@ public class LazyOneToOneWithJoinColumnTest extends BaseReactiveTest {
 		return configuration;
 	}
 
-	@Test
+	@Before
+	public void populateDb(TestContext context) {
+		endpoint = new Endpoint();
+		EndpointWebhook webhook = new EndpointWebhook();
+		endpoint.webhook = webhook;
+		webhook.endpoint = endpoint;
+
+		Mutiny.Session session = openMutinySession();
+		test( context, session.persist( endpoint ).call( session::flush ) );
+	}
+
+//	@After
+//	public void cleanDB(TestContext context) {
+//		test( context, deleteEntities( "Endpoint", "endpoint_webhooks" ) );
+//	}
+
+//	@Test
 	public void testLoad(TestContext context) {
 		final Endpoint endpoint = new Endpoint();
 		final EndpointWebhook webhook = new EndpointWebhook();
@@ -58,7 +79,7 @@ public class LazyOneToOneWithJoinColumnTest extends BaseReactiveTest {
 		);
 	}
 
-	@Test
+//	@Test
 	public void testQuery(TestContext context) {
 		final Endpoint endpoint = new Endpoint();
 		endpoint.accountId = "XYZ_123";
@@ -81,6 +102,27 @@ public class LazyOneToOneWithJoinColumnTest extends BaseReactiveTest {
 								  context.assertEquals( endpoint.id, result.id );
 								  context.assertEquals( webhook.id, result.webhook.id );
 							  } ) )
+		);
+	}
+
+	@Test
+	public void testUpdate(TestContext context) {
+		EndpointWebhook newWebhook = new EndpointWebhook();
+
+		Mutiny.Session session = openMutinySession();
+		test(
+				context,
+				session.find( Endpoint.class, endpoint.id )
+						.invoke( foundEndpoint -> {
+							newWebhook.endpoint = foundEndpoint;
+							foundEndpoint.webhook = newWebhook;
+						} )
+						.call( session::flush )
+						.chain( () -> openMutinySession().find( EndpointWebhook.class, newWebhook.id ) )
+						.invoke( updatedWebhook -> {
+							Assertions.assertThat( updatedWebhook ).isNotNull();
+							Assertions.assertThat( updatedWebhook.endpoint ).isNotNull();
+						})
 		);
 	}
 

@@ -220,19 +220,19 @@ public interface ReactiveAbstractEntityPersister extends ReactiveEntityPersister
 					delegate().generateInsertString( true, notNull ),
 					session
 			)
-			.thenCompose(
-					id -> loop(
-							1, span,
-							table -> insertReactive(
-									id,
-									fields,
-									notNull,
-									table,
-									delegate().generateInsertString( notNull, table ),
-									session
-							)
-					).thenApply( v -> id )
-			);
+					.thenCompose(
+							id -> loop(
+									1, span,
+									table -> insertReactive(
+											id,
+											fields,
+											notNull,
+											table,
+											delegate().generateInsertString( notNull, table ),
+											session
+									)
+							).thenApply( v -> id )
+					);
 		}
 		else {
 			// For the case of dynamic-insert="false", use the static SQL
@@ -242,19 +242,19 @@ public interface ReactiveAbstractEntityPersister extends ReactiveEntityPersister
 					delegate().getSQLIdentityInsertString(),
 					session
 			)
-			.thenCompose(
-					id -> loop(
-							1, span,
-							table -> insertReactive(
-									id,
-									fields,
-									delegate().getPropertyInsertability(),
-									table,
-									delegate().getSQLInsertStrings()[table],
-									session
-							)
-					).thenApply( v -> id )
-			);
+					.thenCompose(
+							id -> loop(
+									1, span,
+									table -> insertReactive(
+											id,
+											fields,
+											delegate().getPropertyInsertability(),
+											table,
+											delegate().getSQLInsertStrings()[table],
+											session
+									)
+							).thenApply( v -> id )
+					);
 		}
 	}
 
@@ -370,7 +370,7 @@ public interface ReactiveAbstractEntityPersister extends ReactiveEntityPersister
 		// Ignoring it for now because it's always false and we have ways to get the id without
 		// the extra round trip for all supported databases
 //		if ( getFactory().getSessionFactoryOptions().isGetGeneratedKeysEnabled() ) {
-			generatedIdStage = connection.insertAndSelectIdentifier( checkSql( sql ), params );
+		generatedIdStage = connection.insertAndSelectIdentifier( checkSql( sql ), params );
 //		}
 //		else {
 //			//use an extra round trip to fetch the id
@@ -410,8 +410,14 @@ public interface ReactiveAbstractEntityPersister extends ReactiveEntityPersister
 			String sql,
 			SharedSessionContractImplementor session,
 			Object[] loadedState) {
-
+//		System.out.println(
+//				"  #### >>>  ReactiveAbstractEntityPersister.deleteReactive()" +
+//						"\n\t === >> sql = " + sql +
+//						"\n\t === >> delegate().isInverseTable( j ) = " + delegate().isInverseTable( j ) +
+//						"\n\t === >> delegate().isTableCascadeDeleteEnabled( j ) = " + delegate().isTableCascadeDeleteEnabled( j ));
 		if ( delegate().isInverseTable( j ) ) {
+//			System.out.println(
+//					"  #### >>>  ReactiveAbstractEntityPersister.deleteReactive() NO DELETION THIS TIME");
 			return voidFuture();
 		}
 		final boolean useVersion = j == 0 && delegate().isVersioned();
@@ -430,6 +436,8 @@ public interface ReactiveAbstractEntityPersister extends ReactiveEntityPersister
 			if ( log.isTraceEnabled() ) {
 				log.tracev( "Delete handled by foreign key constraint: {0}", delegate().getTableName( j ) );
 			}
+			System.out.println(
+					"  #### >>>  ReactiveAbstractEntityPersister.deleteReactive() NO DELETION THIS TIME");
 			//EARLY EXIT!
 			return voidFuture();
 		}
@@ -464,6 +472,8 @@ public interface ReactiveAbstractEntityPersister extends ReactiveEntityPersister
 			}
 		} );
 
+//		System.out.println(
+//				"  #### >>>  ReactiveAbstractEntityPersister.deleteReactive() CALLING DELETE ENTITY");
 		return getReactiveConnection( session )
 				.update( sql, params, useBatch, new DeleteExpectation( id, j, expectation, this ) );
 	}
@@ -859,12 +869,12 @@ public interface ReactiveAbstractEntityPersister extends ReactiveEntityPersister
 				return voidFuture();
 			// 1) select ... for share
 			case PESSIMISTIC_READ:
-			// 2) select ... for update
+				// 2) select ... for update
 			case PESSIMISTIC_WRITE:
 			case UPGRADE:
-			// 3) select ... for nowait
+				// 3) select ... for nowait
 			case UPGRADE_NOWAIT:
-			// 4) select ... for update skip locked
+				// 4) select ... for update skip locked
 			case UPGRADE_SKIPLOCKED:
 				// TODO: introduce separate support for PESSIMISTIC_READ
 				// the current implementation puts the version number in
@@ -885,8 +895,8 @@ public interface ReactiveAbstractEntityPersister extends ReactiveEntityPersister
 			case OPTIMISTIC:
 			case OPTIMISTIC_FORCE_INCREMENT:
 				throw new AssertionFailure("optimistic lock mode is not supported here");
-			// 7) READ and WRITE are obtained implicitly by
-			//    other operations
+				// 7) READ and WRITE are obtained implicitly by
+				//    other operations
 			case READ:
 			case WRITE:
 				throw new AssertionFailure("implicit lock mode is not supported here");
@@ -918,9 +928,9 @@ public interface ReactiveAbstractEntityPersister extends ReactiveEntityPersister
 			}
 		} ).handle( (r ,e) -> {
 			logSqlException( e,
-					() -> "could not lock: "
-							+ infoString( this, id, getFactory() ),
-					sql
+							 () -> "could not lock: "
+									 + infoString( this, id, getFactory() ),
+							 sql
 			);
 			return returnOrRethrow( e, r );
 		} );
@@ -1090,7 +1100,7 @@ public interface ReactiveAbstractEntityPersister extends ReactiveEntityPersister
 		// skip proxy instantiation if entity is bytecode enhanced
 		return getEntityMetamodel().isLazy()
 				&& !( getEntityMetamodel().getBytecodeEnhancementMetadata().isEnhancedForLazyLoading()
-					&& getFactory().getSessionFactoryOptions().isEnhancementAsProxyEnabled() );
+				&& getFactory().getSessionFactoryOptions().isEnhancementAsProxyEnabled() );
 	}
 
 	Object initializeLazyProperty(String fieldName, Object entity, SharedSessionContractImplementor session);
@@ -1124,7 +1134,7 @@ public interface ReactiveAbstractEntityPersister extends ReactiveEntityPersister
 			return collection.wasInitialized()
 					? completedFuture( (T) collection )
 					: ((ReactiveSession) session).reactiveInitializeCollection( collection, false )
-							.thenApply( v -> (T) result );
+					.thenApply( v -> (T) result );
 		}
 		else {
 			return completedFuture( (T) result );
@@ -1150,10 +1160,10 @@ public interface ReactiveAbstractEntityPersister extends ReactiveEntityPersister
 
 		log.tracef( "Initializing lazy properties from datastore (triggered for `%s`)", fieldName );
 
-		 String fetchGroup =
-				 getEntityMetamodel().getBytecodeEnhancementMetadata()
-						 .getLazyAttributesMetadata()
-						 .getFetchGroupName( fieldName );
+		String fetchGroup =
+				getEntityMetamodel().getBytecodeEnhancementMetadata()
+						.getLazyAttributesMetadata()
+						.getFetchGroupName( fieldName );
 		List<LazyAttributeDescriptor> fetchGroupAttributeDescriptors =
 				getEntityMetamodel().getBytecodeEnhancementMetadata()
 						.getLazyAttributesMetadata()
