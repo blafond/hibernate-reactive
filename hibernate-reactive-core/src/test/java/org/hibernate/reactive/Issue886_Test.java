@@ -36,7 +36,7 @@ public class Issue886_Test extends BaseReactiveTest {
 
 	@After
 	public void cleanDb(TestContext context) {
-		test( context, deleteEntities( "SampleEntity", "SampleJoinEntity" ) );
+//		test( context, deleteEntities( "SampleEntity", "SampleJoinEntity" ) );
 	}
 
 	@Test
@@ -50,19 +50,35 @@ public class Issue886_Test extends BaseReactiveTest {
 				context,
 				getMutinySessionFactory()
 						.withTransaction( (s, t) -> s.persistAll( sampleEntity, sampleJoinEntity ) )
-						.chain( this::openMutinySession )
-						.chain( s -> s.find( SampleJoinEntity.class, sampleJoinEntity.id )
-								.call( (entity) -> s.fetch( entity.sampleEntity ) ) )
-						.chain( this::openMutinySession )
-						.chain( s2 -> s2.find( SampleJoinEntity.class, sampleJoinEntity.id ) )
-						.chain( result -> {
-							SampleEntity sampleEntityFromDatabase = result.sampleEntity;
-							sampleEntityFromDatabase.sampleField = "updatedTest";
-							return getMutinySessionFactory().withStatelessSession(
-									s3 -> s3.withTransaction(
-											tx -> s3.update( sampleEntityFromDatabase )
-									) );
-						} )
+						.chain( () -> getMutinySessionFactory()
+								.withTransaction( (session, transaction) -> session.find(
+										SampleJoinEntity.class, sampleJoinEntity.id )
+										.invoke( sje -> context.assertNotNull( sje ) )
+										.chain( sje -> session.fetch( sje.sampleEntity ) )
+								)
+						)
+						.chain( () -> getMutinySessionFactory()
+								.withTransaction( (session, transaction) -> session.find(
+										SampleJoinEntity.class, sampleJoinEntity.id )
+										.invoke( sje -> context.assertNotNull( sje ) )
+										.chain( result -> {
+											SampleEntity sampleEntityFromDatabase = result.sampleEntity;
+											sampleEntityFromDatabase.sampleField = "updatedTest";
+											return getMutinySessionFactory().withStatelessTransaction(
+													(s3, transaction1) -> s3.withTransaction(
+															tx -> s3.update( sampleEntityFromDatabase )
+													) );
+										} )
+								)
+						)
+						.chain( () -> getMutinySessionFactory()
+								.withTransaction( (session, transaction) -> session
+										.find( SampleJoinEntity.class, sampleJoinEntity.id ) )
+								.invoke( sje -> {
+									context.assertNotNull( sje );
+									context.assertEquals( sje.sampleEntity.sampleField, "updatedTest" );
+								} )
+						)
 		);
 	}
 
