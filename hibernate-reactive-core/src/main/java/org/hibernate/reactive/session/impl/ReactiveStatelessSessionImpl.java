@@ -217,6 +217,27 @@ public class ReactiveStatelessSessionImpl extends StatelessSessionImpl
     @Override
     public CompletionStage<Void> reactiveUpdate(Object entity) {
         checkOpen();
+        if( entity instanceof HibernateProxy ) {
+            return reactiveFetch(entity, true).thenCompose( fetchedEntity -> {
+                // Basically the same as reactiveUpdate but using fetchedEntity instead of entity
+                ReactiveEntityPersister persister = getEntityPersister( null, fetchedEntity );
+                Serializable id = persister.getIdentifier( fetchedEntity, this );
+                // Capture state of the proxy entity
+                Object[] state = persister.getPropertyValues( entity );
+                Object oldVersion;
+                if ( persister.isVersioned() ) {
+                    oldVersion = persister.getVersion( fetchedEntity );
+                    Object newVersion = Versioning.increment( oldVersion, persister.getVersionType(), this );
+                    Versioning.setVersion( state, newVersion, persister );
+                    persister.setPropertyValues( fetchedEntity, state );
+                }
+                else {
+                    oldVersion = null;
+                }
+                return persister.updateReactive( id, state, null, false, null, oldVersion, fetchedEntity, null, this );
+            });
+        }
+
         ReactiveEntityPersister persister = getEntityPersister( null, entity );
         Serializable id = persister.getIdentifier( entity, this );
         Object[] state = persister.getPropertyValues( entity );

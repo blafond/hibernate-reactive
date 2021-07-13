@@ -36,7 +36,7 @@ public class Issue886_Test extends BaseReactiveTest {
 
 	@After
 	public void cleanDb(TestContext context) {
-//		test( context, deleteEntities( "SampleEntity", "SampleJoinEntity" ) );
+		test( context, deleteEntities( "SampleEntity", "SampleJoinEntity" ) );
 	}
 
 	@Test
@@ -53,31 +53,23 @@ public class Issue886_Test extends BaseReactiveTest {
 						.chain( () -> getMutinySessionFactory()
 								.withTransaction( (session, transaction) -> session.find(
 										SampleJoinEntity.class, sampleJoinEntity.id )
-										.invoke( sje -> context.assertNotNull( sje ) )
-										.chain( sje -> session.fetch( sje.sampleEntity ) )
+										.invoke( context::assertNotNull )
 								)
+								.chain( result -> getMutinySessionFactory()
+										.withStatelessTransaction(
+												(s3, transaction1) -> {
+													result.sampleEntity.sampleField = "updatedTest";
+													return s3.withTransaction(
+															tx -> s3.update( result.sampleEntity )
+													);
+												} ) )
 						)
 						.chain( () -> getMutinySessionFactory()
-								.withTransaction( (session, transaction) -> session.find(
+								.withSession( session -> session.find(
 										SampleJoinEntity.class, sampleJoinEntity.id )
-										.invoke( sje -> context.assertNotNull( sje ) )
-										.chain( result -> {
-											SampleEntity sampleEntityFromDatabase = result.sampleEntity;
-											sampleEntityFromDatabase.sampleField = "updatedTest";
-											return getMutinySessionFactory().withStatelessTransaction(
-													(s3, transaction1) -> s3.withTransaction(
-															tx -> s3.update( sampleEntityFromDatabase )
-													) );
-										} )
+										.invoke( result -> context.assertEquals( "updatedTest", result.sampleEntity.sampleField )
+										)
 								)
-						)
-						.chain( () -> getMutinySessionFactory()
-								.withTransaction( (session, transaction) -> session
-										.find( SampleJoinEntity.class, sampleJoinEntity.id ) )
-								.invoke( sje -> {
-									context.assertNotNull( sje );
-									context.assertEquals( sje.sampleEntity.sampleField, "updatedTest" );
-								} )
 						)
 		);
 	}
@@ -100,7 +92,7 @@ public class Issue886_Test extends BaseReactiveTest {
 		@GeneratedValue(strategy = GenerationType.IDENTITY)
 		public Long id;
 
-		@ManyToOne(fetch = FetchType.EAGER)
+		@ManyToOne(fetch = FetchType.LAZY)
 		@JoinColumn(name = "sample_entity_id", referencedColumnName = "id")
 		public SampleEntity sampleEntity;
 	}
