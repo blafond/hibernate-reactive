@@ -64,13 +64,13 @@ public class Issue886_Test extends BaseReactiveTest {
 													);
 												} ) )
 						)
-						.chain( () -> getMutinySessionFactory()
-								.withSession( session -> session.find(
-										SampleJoinEntity.class, sampleJoinEntity.id )
-										.invoke( result -> context.assertEquals( "updatedTest", result.sampleEntity.sampleField )
-										)
-								)
-						)
+//						.chain( () -> getMutinySessionFactory()
+//								.withSession( session -> session.find(
+//										SampleJoinEntity.class, sampleJoinEntity.id )
+//										.invoke( result -> context.assertEquals( "updatedTest", result.sampleEntity.sampleField )
+//										)
+//								)
+//						)
 		);
 	}
 
